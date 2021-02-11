@@ -57,14 +57,19 @@ var _ = Describe("(Integration) [non-eksctl cluster & nodegroup support]", func(
 				Region: params.Region,
 			},
 		}
-		clusterProvider, err := eks.New(&api.ProviderConfig{Region: params.Region}, cfg)
-		Expect(err).NotTo(HaveOccurred())
-		ctl = clusterProvider.Provider
-		createClusterWithNodegroups(clusterName, stackName, ng1, ng2, ctl)
+
+		if !params.SkipCreate {
+			clusterProvider, err := eks.New(&api.ProviderConfig{Region: params.Region}, cfg)
+			Expect(err).NotTo(HaveOccurred())
+			ctl = clusterProvider.Provider
+			createClusterWithNodegroups(clusterName, stackName, ng1, ng2, ctl)
+		}
 	})
 
 	AfterSuite(func() {
-		deleteStack(stackName, ctl)
+		if !params.SkipDelete {
+			deleteStack(stackName, ctl)
+		}
 	})
 
 	It("supports getting non-eksctl resources", func() {
@@ -112,8 +117,8 @@ var _ = Describe("(Integration) [non-eksctl cluster & nodegroup support]", func(
 				"--nodegroup", ng1,
 				"--verbose", "2",
 			)
-			// It sometimes takes more than 20 seconds for the above set to take effect
-		Eventually(func() *gbytes.Buffer { return cmd.Run().Out }, time.Second*30).Should(gbytes.Say("key=value"))
+			// It sometimes takes forever for the above set to take effect
+		Eventually(func() *gbytes.Buffer { return cmd.Run().Out }, time.Minute*2).Should(gbytes.Say("key=value"))
 
 		By("unsetting labels on a nodegroup")
 		cmd = params.EksctlUnsetLabelsCmd.
